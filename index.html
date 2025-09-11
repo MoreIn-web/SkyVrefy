@@ -11,7 +11,7 @@ body, html {
   background: linear-gradient(135deg, #000428, #004e92);
   color:#fff; overflow-x:hidden;
 }
-@keyframes fadeIn {from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+@keyframes fadeIn {from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
 
 .container {
   max-width:1200px; margin:40px auto; padding:20px;
@@ -173,17 +173,21 @@ onSnapshot(collection(db,"orders"), (snapshot)=>{
     const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
       ? new Date(data.createdAt.seconds*1000).toLocaleString()
       : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+
+    const isDone = data.status === "done" ? true : false;
+    const actionBtn = isDone
+      ? `<button class="action verified" disabled>Done!</button>`
+      : `<button class="action" onclick="markDone('${docSnap.id}', this)">Mark Done</button>`;
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="Number">${data.number}</td>
       <td data-label="Item">${data.item}</td>
       <td data-label="Address">${data.address}</td>
       <td data-label="Time">${createdAt}</td>
-      <td data-label="Action">
-        <button class="action" onclick="markDone('${docSnap.id}')">Mark Done</button>
-      </td>
+      <td data-label="Action">${actionBtn}</td>
     `;
-    ordersTable.appendChild(tr);
+    ordersTable.prepend(tr); // New orders top
   });
 });
 
@@ -200,7 +204,7 @@ onSnapshot(collection(db,"verifications"), (snapshot)=>{
     const isVerified = data.verified ? true : false;
     const buttonHTML = isVerified 
       ? `<button class="action verified" disabled>Verified!</button>` 
-      : `<button class="action" onclick="verifyNumber('${docSnap.id}')">Verify</button>`;
+      : `<button class="action" onclick="verifyNumber('${docSnap.id}', '${data.number}', this)">Verify</button>`;
     
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -213,16 +217,26 @@ onSnapshot(collection(db,"verifications"), (snapshot)=>{
 });
 
 // ===== Mark Order Done =====
-window.markDone = async function(id){
+window.markDone = async function(id, btn){
   await updateDoc(doc(db,"orders",id), {status:"done"});
-  alert("Order marked as done!");
+  btn.innerText = "Done!";
+  btn.classList.add("verified");
+  btn.disabled = true;
 };
 
 // ===== Verify Number =====
-window.verifyNumber = async function(id){
+window.verifyNumber = async function(id, number, btn){
   await updateDoc(doc(db,"verifications",id), {verified:true});
-  alert("Number verified! User can now access dashboard.");
+  btn.innerText = "Verified!";
+  btn.classList.add("verified");
+  btn.disabled = true;
+
+  // Redirect user to dashboard automatically
+  // Example: assuming dashboard URL is /dashboard?number=...
+  window.open(`/dashboard?number=${number}`, "_blank");
+  alert("Number verified! User redirected to dashboard.");
 };
 </script>
 </body>
 </html>
+
