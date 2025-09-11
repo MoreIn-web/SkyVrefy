@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyDelivery Admin Panel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body, html {
+  margin:0; padding:0; font-family:'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #000428, #004e92);
+  color:#fff; overflow-x:hidden;
+}
+@keyframes fadeIn {from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+
+.container {
+  max-width:1200px; margin:40px auto; padding:20px;
+  background:rgba(255,255,255,0.05);
+  border-radius:20px; backdrop-filter:blur(10px);
+  box-shadow:0 8px 25px rgba(0,0,0,0.5);
+  animation:fadeIn 0.8s ease-out;
+}
+
+h1 {
+  text-align:center; color:#0ff; margin-bottom:20px;
+  text-shadow:0 0 15px #0ff;
+}
+
+/* Top Buttons */
+.tabs {
+  display:flex; justify-content:center; gap:15px; margin-bottom:20px;
+}
+.tabs button {
+  padding:10px 20px; border:none; border-radius:10px;
+  background:#00e0e0; color:#000; font-weight:bold; cursor:pointer;
+  transition:0.3s; font-size:15px;
+}
+.tabs button:hover {
+  background:#0ff; transform:scale(1.05);
+  box-shadow:0 0 15px #0ff;
+}
+.tabs button.active {
+  background:#0ff; box-shadow:0 0 15px #0ff;
+}
+
+/* Tables */
+table {
+  width:100%; border-collapse:collapse; margin-top:20px;
+}
+table th, table td {
+  padding:14px 12px; text-align:left;
+}
+table thead {
+  background:#00e0e033; color:#0ff;
+}
+table tbody tr {
+  background:rgba(255,255,255,0.02);
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  transition:all 0.3s ease;
+}
+table tbody tr:hover {
+  background:rgba(0,255,255,0.1);
+  transform:scale(1.01);
+}
+
+button.action {
+  padding:8px 15px; border:none; border-radius:8px;
+  background:#00e0e0; color:#000; font-weight:bold;
+  cursor:pointer; transition:0.3s; font-size:14px;
+}
+button.action:hover {
+  background:#0ff; transform:scale(1.05);
+  box-shadow:0 0 15px #0ff;
+}
+
+@media(max-width:768px) {
+  table, thead, tbody, th, td, tr { display:block; width:100%; }
+  thead { display:none; }
+  tr { margin-bottom:15px; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:10px; }
+  td { text-align:left; padding:10px; }
+  td::before {
+    content:attr(data-label); font-weight:bold; display:block; margin-bottom:5px; color:#0ff;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1><i class="fas fa-cogs"></i> Admin Panel - SkyDelivery</h1>
+
+  <!-- Top Buttons -->
+  <div class="tabs">
+    <button id="ordersTab" class="active">Orders</button>
+    <button id="verifyTab">Number Verify</button>
+  </div>
+
+  <!-- Orders Table -->
+  <div id="ordersSection">
+    <table id="ordersTable">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Item</th>
+          <th>Address</th>
+          <th>Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Verify Numbers Table -->
+  <div id="verifySection" style="display:none;">
+    <table id="verifyTable">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Submitted At</th>
+          <th>Verify</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDeEHvWStnN-GMHlrBnqPNzZZBEYqng6wE",
+  authDomain: "skydellvery.firebaseapp.com",
+  projectId: "skydellvery",
+  storageBucket: "skydellvery.appspot.com",
+  messagingSenderId: "1060943398926",
+  appId: "1:1060943398926:web:c50f75aa27729caf97d45f"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ===== Tab Switch =====
+const ordersTab = document.getElementById("ordersTab");
+const verifyTab = document.getElementById("verifyTab");
+const ordersSection = document.getElementById("ordersSection");
+const verifySection = document.getElementById("verifySection");
+
+ordersTab.onclick = ()=> {
+  ordersSection.style.display = "block";
+  verifySection.style.display = "none";
+  ordersTab.classList.add("active");
+  verifyTab.classList.remove("active");
+};
+verifyTab.onclick = ()=> {
+  ordersSection.style.display = "none";
+  verifySection.style.display = "block";
+  verifyTab.classList.add("active");
+  ordersTab.classList.remove("active");
+};
+
+// ===== Load Orders =====
+const ordersTable = document.querySelector("#ordersTable tbody");
+onSnapshot(collection(db,"orders"), (snapshot)=>{
+  ordersTable.innerHTML = "";
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
+      ? new Date(data.createdAt.seconds*1000).toLocaleString()
+      : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Number">${data.number}</td>
+      <td data-label="Item">${data.item}</td>
+      <td data-label="Address">${data.address}</td>
+      <td data-label="Time">${createdAt}</td>
+      <td data-label="Action">
+        <button class="action" onclick="markDone('${docSnap.id}')">Mark Done</button>
+      </td>
+    `;
+    ordersTable.appendChild(tr);
+  });
+});
+
+// ===== Load Verify Numbers =====
+const verifyTable = document.querySelector("#verifyTable tbody");
+onSnapshot(collection(db,"verifications"), (snapshot)=>{
+  verifyTable.innerHTML = "";
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
+      ? new Date(data.createdAt.seconds*1000).toLocaleString()
+      : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Number">${data.number}</td>
+      <td data-label="Submitted At">${createdAt}</td>
+      <td data-label="Verify">
+        <button class="action" onclick="verifyNumber('${docSnap.id}')">Verify</button>
+      </td>
+    `;
+    verifyTable.appendChild(tr);
+  });
+});
+
+// ===== Mark Order Done =====
+window.markDone = async function(id){
+  await updateDoc(doc(db,"orders",id), {status:"done"});
+  alert("Order marked as done!");
+};
+
+// ===== Verify Number =====
+window.verifyNumber = async function(id){
+  await updateDoc(doc(db,"verifications",id), {verified:true});
+  alert("Number verified!");
+};
+</script>
+</body>
+</html>
