@@ -132,7 +132,7 @@ button.action.verified {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, collection, query, orderBy, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDeEHvWStnN-GMHlrBnqPNzZZBEYqng6wE",
@@ -164,9 +164,10 @@ verifyTab.onclick = ()=> {
   ordersTab.classList.remove("active");
 };
 
-// ===== Load Orders =====
+// ===== Load Orders (Newest Top) =====
 const ordersTable = document.querySelector("#ordersTable tbody");
-onSnapshot(collection(db,"orders"), (snapshot)=>{
+const ordersQuery = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+onSnapshot(ordersQuery, (snapshot)=>{
   ordersTable.innerHTML = "";
   snapshot.forEach(docSnap=>{
     const data = docSnap.data();
@@ -187,25 +188,26 @@ onSnapshot(collection(db,"orders"), (snapshot)=>{
       <td data-label="Time">${createdAt}</td>
       <td data-label="Action">${actionBtn}</td>
     `;
-    ordersTable.prepend(tr); // New orders top
+    ordersTable.appendChild(tr);
   });
 });
 
-// ===== Load Verify Numbers =====
+// ===== Load Verify Numbers (Newest Top) =====
 const verifyTable = document.querySelector("#verifyTable tbody");
-onSnapshot(collection(db,"verifications"), (snapshot)=>{
+const verifyQuery = query(collection(db, "verifications"), orderBy("createdAt", "desc"));
+onSnapshot(verifyQuery, (snapshot)=>{
   verifyTable.innerHTML = "";
   snapshot.forEach(docSnap=>{
     const data = docSnap.data();
     const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
       ? new Date(data.createdAt.seconds*1000).toLocaleString()
       : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
-    
+
     const isVerified = data.verified ? true : false;
     const buttonHTML = isVerified 
       ? `<button class="action verified" disabled>Verified!</button>` 
       : `<button class="action" onclick="verifyNumber('${docSnap.id}', '${data.number}', this)">Verify</button>`;
-    
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="Number">${data.number}</td>
@@ -232,7 +234,6 @@ window.verifyNumber = async function(id, number, btn){
   btn.disabled = true;
 
   // Redirect user to dashboard automatically
-  // Example: assuming dashboard URL is /dashboard?number=...
   window.open(`/dashboard?number=${number}`, "_blank");
   alert("Number verified! User redirected to dashboard.");
 };
