@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyDelivery Admin Panel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body, html{
+  margin:0; padding:0; font-family:'Arial', sans-serif; background:#0a0a0a; color:#fff; overflow-x:hidden;
+}
+
+/* ===== Admin Panel ===== */
+header{
+  background:#111; color:#0ff; padding:20px; text-align:center; font-size:24px; font-weight:bold;
+  box-shadow:0 0 10px #0ff;
+}
+
+.container{
+  padding:20px;
+}
+
+.userCard{
+  background:#111; border:2px solid #0ff; border-radius:12px; padding:15px; margin-bottom:15px;
+  display:flex; justify-content:space-between; align-items:center; transition:all 0.3s;
+}
+.userCard:hover{background:#0ff; color:#000;}
+
+.userInfo{
+  display:flex; flex-direction:column;
+}
+.userInfo p{margin:3px 0; color:#fff;}
+.userInfo p span{color:#0ff;}
+
+button.verifyBtn{
+  padding:10px 20px; border:none; border-radius:8px; background:#0ff; color:#000;
+  cursor:pointer; transition:all 0.3s;
+}
+button.verifyBtn:hover{
+  transform:scale(1.1); box-shadow:0 0 15px #0ff; color:#fff;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeIn{from {opacity:0;} to {opacity:1;}}
+.container{animation:fadeIn 1s;}
+</style>
+</head>
+<body>
+
+<header>SkyDelivery Admin Panel</header>
+
+<div class="container" id="userList">
+  <!-- User cards will be dynamically added here -->
+</div>
+
+<script type="module">
+// Firebase import
+import { db, collection, onSnapshot, doc, updateDoc } from './firebase.js';
+
+const userList = document.getElementById("userList");
+
+// ===== Listen verifications =====
+onSnapshot(collection(db,"verifications"), (snapshot)=>{
+  userList.innerHTML=""; // clear
+  snapshot.docs.forEach(docSnap=>{
+    const data = docSnap.data();
+    const id = docSnap.id;
+
+    // Create user card
+    const card = document.createElement("div");
+    card.className = "userCard";
+
+    const info = document.createElement("div");
+    info.className = "userInfo";
+    info.innerHTML=`<p><span>Number:</span> ${data.number}</p>
+                    <p><span>Verified:</span> ${data.verified ? '✅' : '❌'}</p>
+                    <p><span>Created At:</span> ${data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString() : 'N/A'}</p>`;
+
+    const verifyBtn = document.createElement("button");
+    verifyBtn.className="verifyBtn";
+    verifyBtn.innerText = data.verified ? "Verified" : "Verify";
+    verifyBtn.disabled = data.verified;
+
+    verifyBtn.onclick = async ()=>{
+      await updateDoc(doc(db,"verifications",id), {verified:true});
+      alert(`User ${data.number} verified!`);
+    };
+
+    card.appendChild(info);
+    card.appendChild(verifyBtn);
+
+    userList.appendChild(card);
+  });
+});
+</script>
+
+</body>
+</html>
+
