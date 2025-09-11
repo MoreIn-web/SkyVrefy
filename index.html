@@ -72,7 +72,11 @@ button.action:hover {
   background:#0ff; transform:scale(1.05);
   box-shadow:0 0 15px #0ff;
 }
+button.action.verified {
+  background:rgba(0,255,0,0.8); color:#000; cursor:default;
+}
 
+/* Responsive */
 @media(max-width:768px) {
   table, thead, tbody, th, td, tr { display:block; width:100%; }
   thead { display:none; }
@@ -192,13 +196,17 @@ onSnapshot(collection(db,"verifications"), (snapshot)=>{
     const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
       ? new Date(data.createdAt.seconds*1000).toLocaleString()
       : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+    
+    const isVerified = data.verified ? true : false;
+    const buttonHTML = isVerified 
+      ? `<button class="action verified" disabled>Verified!</button>` 
+      : `<button class="action" onclick="verifyNumber('${docSnap.id}')">Verify</button>`;
+    
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td data-label="Number">${data.number}</td>
       <td data-label="Submitted At">${createdAt}</td>
-      <td data-label="Verify">
-        <button class="action" onclick="verifyNumber('${docSnap.id}')">Verify</button>
-      </td>
+      <td data-label="Verify">${buttonHTML}</td>
     `;
     verifyTable.appendChild(tr);
   });
@@ -213,7 +221,7 @@ window.markDone = async function(id){
 // ===== Verify Number =====
 window.verifyNumber = async function(id){
   await updateDoc(doc(db,"verifications",id), {verified:true});
-  alert("Number verified!");
+  alert("Number verified! User can now access dashboard.");
 };
 </script>
 </body>
