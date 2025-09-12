@@ -97,6 +97,7 @@ button.action.verified {
   <div class="tabs">
     <button id="ordersTab" class="active">Orders</button>
     <button id="verifyTab">Number Verify</button>
+    <button id="webOrdersTab">Web Orders</button>
   </div>
 
   <!-- Orders Table -->
@@ -128,6 +129,22 @@ button.action.verified {
       <tbody></tbody>
     </table>
   </div>
+
+  <!-- Web Orders Table -->
+  <div id="webOrdersSection" style="display:none;">
+    <table id="webOrdersTable">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Website Description</th>
+          <th>Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
 </div>
 
 <script type="module">
@@ -148,23 +165,41 @@ const db = getFirestore(app);
 // ===== Tab Switch =====
 const ordersTab = document.getElementById("ordersTab");
 const verifyTab = document.getElementById("verifyTab");
+const webOrdersTab = document.getElementById("webOrdersTab");
+
 const ordersSection = document.getElementById("ordersSection");
 const verifySection = document.getElementById("verifySection");
+const webOrdersSection = document.getElementById("webOrdersSection");
 
 ordersTab.onclick = ()=> {
   ordersSection.style.display = "block";
   verifySection.style.display = "none";
+  webOrdersSection.style.display = "none";
+  
   ordersTab.classList.add("active");
   verifyTab.classList.remove("active");
+  webOrdersTab.classList.remove("active");
 };
 verifyTab.onclick = ()=> {
   ordersSection.style.display = "none";
   verifySection.style.display = "block";
+  webOrdersSection.style.display = "none";
+  
   verifyTab.classList.add("active");
   ordersTab.classList.remove("active");
+  webOrdersTab.classList.remove("active");
+};
+webOrdersTab.onclick = ()=> {
+  ordersSection.style.display = "none";
+  verifySection.style.display = "none";
+  webOrdersSection.style.display = "block";
+  
+  webOrdersTab.classList.add("active");
+  ordersTab.classList.remove("active");
+  verifyTab.classList.remove("active");
 };
 
-// ===== Load Orders (Newest Top) =====
+// ===== Load Orders =====
 const ordersTable = document.querySelector("#ordersTable tbody");
 const ordersQuery = query(collection(db, "orders"), orderBy("createdAt", "desc"));
 onSnapshot(ordersQuery, (snapshot)=>{
@@ -192,7 +227,7 @@ onSnapshot(ordersQuery, (snapshot)=>{
   });
 });
 
-// ===== Load Verify Numbers (Newest Top) =====
+// ===== Load Verify Numbers =====
 const verifyTable = document.querySelector("#verifyTable tbody");
 const verifyQuery = query(collection(db, "verifications"), orderBy("createdAt", "desc"));
 onSnapshot(verifyQuery, (snapshot)=>{
@@ -218,7 +253,34 @@ onSnapshot(verifyQuery, (snapshot)=>{
   });
 });
 
-// ===== Mark Order Done =====
+// ===== Load Web Orders =====
+const webOrdersTable = document.querySelector("#webOrdersTable tbody");
+const webOrdersQuery = query(collection(db, "websiteRequests"), orderBy("createdAt", "desc"));
+onSnapshot(webOrdersQuery, (snapshot)=>{
+  webOrdersTable.innerHTML = "";
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
+      ? new Date(data.createdAt.seconds*1000).toLocaleString()
+      : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
+
+    const isSubmitted = data.submitted ? true : false;
+    const actionBtn = isSubmitted
+      ? `<button class="action verified" disabled>Submitted!</button>`
+      : `<button class="action" onclick="markSubmitted('${docSnap.id}', this)">Not Submit</button>`;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Number">${data.number}</td>
+      <td data-label="Website Description">${data.description}</td>
+      <td data-label="Time">${createdAt}</td>
+      <td data-label="Action">${actionBtn}</td>
+    `;
+    webOrdersTable.appendChild(tr);
+  });
+});
+
+// ===== Functions =====
 window.markDone = async function(id, btn){
   await updateDoc(doc(db,"orders",id), {status:"done"});
   btn.innerText = "Done!";
@@ -226,7 +288,6 @@ window.markDone = async function(id, btn){
   btn.disabled = true;
 };
 
-// ===== Verify Number =====
 window.verifyNumber = async function(id, number, btn){
   await updateDoc(doc(db,"verifications",id), {verified:true});
   btn.innerText = "Verified!";
@@ -237,7 +298,16 @@ window.verifyNumber = async function(id, number, btn){
   window.open(`/dashboard?number=${number}`, "_blank");
   alert("Number verified! User redirected to dashboard.");
 };
+
+window.markSubmitted = async function(id, btn){
+  await updateDoc(doc(db,"websiteRequests",id), {submitted:true});
+  btn.innerText = "Submitted!";
+  btn.classList.add("verified");
+  btn.disabled = true;
+};
 </script>
+
 </body>
 </html>
+
 
