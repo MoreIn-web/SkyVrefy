@@ -98,6 +98,7 @@ button.action.verified {
     <button id="ordersTab" class="active">Orders</button>
     <button id="verifyTab">Number Verify</button>
     <button id="webOrdersTab">Web Orders</button>
+    <button id="msInfoTab">MS Info Requests</button>
   </div>
 
   <!-- Orders Table -->
@@ -145,6 +146,21 @@ button.action.verified {
     </table>
   </div>
 
+  <!-- MS Info Table -->
+  <div id="msInfoSection" style="display:none;">
+    <table id="msInfoTable">
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Roll</th>
+          <th>Name</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
 </div>
 
 <script type="module">
@@ -166,38 +182,22 @@ const db = getFirestore(app);
 const ordersTab = document.getElementById("ordersTab");
 const verifyTab = document.getElementById("verifyTab");
 const webOrdersTab = document.getElementById("webOrdersTab");
+const msInfoTab = document.getElementById("msInfoTab");
 
 const ordersSection = document.getElementById("ordersSection");
 const verifySection = document.getElementById("verifySection");
 const webOrdersSection = document.getElementById("webOrdersSection");
+const msInfoSection = document.getElementById("msInfoSection");
 
-ordersTab.onclick = ()=> {
-  ordersSection.style.display = "block";
-  verifySection.style.display = "none";
-  webOrdersSection.style.display = "none";
-  
-  ordersTab.classList.add("active");
-  verifyTab.classList.remove("active");
-  webOrdersTab.classList.remove("active");
-};
-verifyTab.onclick = ()=> {
-  ordersSection.style.display = "none";
-  verifySection.style.display = "block";
-  webOrdersSection.style.display = "none";
-  
-  verifyTab.classList.add("active");
-  ordersTab.classList.remove("active");
-  webOrdersTab.classList.remove("active");
-};
-webOrdersTab.onclick = ()=> {
-  ordersSection.style.display = "none";
-  verifySection.style.display = "none";
-  webOrdersSection.style.display = "block";
-  
-  webOrdersTab.classList.add("active");
-  ordersTab.classList.remove("active");
-  verifyTab.classList.remove("active");
-};
+function resetTabs() {
+  [ordersTab, verifyTab, webOrdersTab, msInfoTab].forEach(btn => btn.classList.remove("active"));
+  [ordersSection, verifySection, webOrdersSection, msInfoSection].forEach(sec => sec.style.display="none");
+}
+
+ordersTab.onclick = ()=> { resetTabs(); ordersSection.style.display="block"; ordersTab.classList.add("active"); };
+verifyTab.onclick = ()=> { resetTabs(); verifySection.style.display="block"; verifyTab.classList.add("active"); };
+webOrdersTab.onclick = ()=> { resetTabs(); webOrdersSection.style.display="block"; webOrdersTab.classList.add("active"); };
+msInfoTab.onclick = ()=> { resetTabs(); msInfoSection.style.display="block"; msInfoTab.classList.add("active"); };
 
 // ===== Load Orders =====
 const ordersTable = document.querySelector("#ordersTable tbody");
@@ -206,20 +206,17 @@ onSnapshot(ordersQuery, (snapshot)=>{
   ordersTable.innerHTML = "";
   snapshot.forEach(docSnap=>{
     const data = docSnap.data();
-    const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
+    const createdAt = data.createdAt?.seconds
       ? new Date(data.createdAt.seconds*1000).toLocaleString()
-      : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
-
-    const isDone = data.status === "done" ? true : false;
-    const actionBtn = isDone
+      : "";
+    const actionBtn = data.status==="done"
       ? `<button class="action verified" disabled>Done!</button>`
       : `<button class="action" onclick="markDone('${docSnap.id}', this)">Mark Done</button>`;
-
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="Number">${data.number}</td>
-      <td data-label="Item">${data.item}</td>
-      <td data-label="Address">${data.address}</td>
+      <td data-label="Number">${data.number||""}</td>
+      <td data-label="Item">${data.item||""}</td>
+      <td data-label="Address">${data.address||""}</td>
       <td data-label="Time">${createdAt}</td>
       <td data-label="Action">${actionBtn}</td>
     `;
@@ -234,18 +231,15 @@ onSnapshot(verifyQuery, (snapshot)=>{
   verifyTable.innerHTML = "";
   snapshot.forEach(docSnap=>{
     const data = docSnap.data();
-    const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
+    const createdAt = data.createdAt?.seconds
       ? new Date(data.createdAt.seconds*1000).toLocaleString()
-      : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
-
-    const isVerified = data.verified ? true : false;
-    const buttonHTML = isVerified 
-      ? `<button class="action verified" disabled>Verified!</button>` 
+      : "";
+    const buttonHTML = data.verified
+      ? `<button class="action verified" disabled>Verified!</button>`
       : `<button class="action" onclick="verifyNumber('${docSnap.id}', '${data.number}', this)">Verify</button>`;
-
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="Number">${data.number}</td>
+      <td data-label="Number">${data.number||""}</td>
       <td data-label="Submitted At">${createdAt}</td>
       <td data-label="Verify">${buttonHTML}</td>
     `;
@@ -260,23 +254,41 @@ onSnapshot(webOrdersQuery, (snapshot)=>{
   webOrdersTable.innerHTML = "";
   snapshot.forEach(docSnap=>{
     const data = docSnap.data();
-    const createdAt = data.createdAt instanceof Object && data.createdAt.seconds
+    const createdAt = data.createdAt?.seconds
       ? new Date(data.createdAt.seconds*1000).toLocaleString()
-      : data.createdAt ? new Date(data.createdAt).toLocaleString() : "";
-
-    const isSubmitted = data.submitted ? true : false;
-    const actionBtn = isSubmitted
+      : "";
+    const actionBtn = data.submitted
       ? `<button class="action verified" disabled>Submitted!</button>`
       : `<button class="action" onclick="markSubmitted('${docSnap.id}', this)">Not Submit</button>`;
-
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td data-label="Number">${data.number}</td>
-      <td data-label="Website Description">${data.description}</td>
+      <td data-label="Number">${data.number||""}</td>
+      <td data-label="Website Description">${data.description||""}</td>
       <td data-label="Time">${createdAt}</td>
       <td data-label="Action">${actionBtn}</td>
     `;
     webOrdersTable.appendChild(tr);
+  });
+});
+
+// ===== Load MS Info =====
+const msInfoTable = document.querySelector("#msInfoTable tbody");
+const msInfoQuery = query(collection(db, "madrashaRequests"), orderBy("createdAt", "desc"));
+onSnapshot(msInfoQuery, (snapshot)=>{
+  msInfoTable.innerHTML = "";
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    const createdAt = data.createdAt?.seconds
+      ? new Date(data.createdAt.seconds*1000).toLocaleString()
+      : "";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Number">${data.number||""}</td>
+      <td data-label="Roll">${data.madrashaRoll||""}</td>
+      <td data-label="Name">${data.madrashaName||""}</td>
+      <td data-label="Time">${createdAt}</td>
+    `;
+    msInfoTable.appendChild(tr);
   });
 });
 
@@ -293,8 +305,6 @@ window.verifyNumber = async function(id, number, btn){
   btn.innerText = "Verified!";
   btn.classList.add("verified");
   btn.disabled = true;
-
-  // Redirect user to dashboard automatically
   window.open(`/dashboard?number=${number}`, "_blank");
   alert("Number verified! User redirected to dashboard.");
 };
@@ -306,7 +316,6 @@ window.markSubmitted = async function(id, btn){
   btn.disabled = true;
 };
 </script>
-
 </body>
 </html>
 
